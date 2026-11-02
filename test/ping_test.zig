@@ -111,6 +111,15 @@ test "tcp latency selector rejects retransmission-like retry drops" {
     try std.testing.expectEqual(@as(i64, 115), ping.selectLatencyFromSamplesForTest("http", &.{ 1205, 115, 118 }));
 }
 
+test "latency selector uses post-warmup samples when initial sample is cold-start spike" {
+    // 首包 215ms 是冷启动打洞耗时，后序包 12ms / 14ms 是真实延迟
+    try std.testing.expectEqual(@as(i64, 12), ping.selectLatencyFromSamplesForTest("icmp", &.{ 215, 14, 12 }));
+    // 首包丢包（-1），后序包 15ms
+    try std.testing.expectEqual(@as(i64, 15), ping.selectLatencyFromSamplesForTest("icmp", &.{ -1, 15, 20 }));
+    // 后序包全丢，首包 215ms 保底
+    try std.testing.expectEqual(@as(i64, 215), ping.selectLatencyFromSamplesForTest("icmp", &.{ 215, -1, -1 }));
+}
+
 test "windows icmp ping can probe loopback" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
     const latency = ping.measure(std.testing.allocator, "icmp", "127.0.0.1", "");

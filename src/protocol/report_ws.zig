@@ -423,6 +423,16 @@ const PingTaskArgs = struct {
 
 fn runPingTask(allocator: std.mem.Allocator, args: PingTaskArgs) void {
     defer args.deinit(allocator);
+
+    // 随机延时运行（Jitter: 0 ~ 1000ms），打散并发任务执行，避免瞬时排队冲垮 NAT/网卡
+    var rand_buf: [2]u8 = undefined;
+    std.Options.debug_io.randomSecure(&rand_buf) catch {
+        rand_buf = .{ 0, 0 };
+    };
+    const rand_u16: u16 = (@as(u16, rand_buf[0]) << 8) | rand_buf[1];
+    const jitter_ms: u64 = @as(u64, rand_u16 % 1001);
+    compat.sleep(jitter_ms * std.time.ns_per_ms);
+
     const value = ping.measure(allocator, args.ping_type, args.ping_target, args.cfg.custom_dns);
     const finished = task.utcNow(allocator) catch return;
     defer allocator.free(finished);

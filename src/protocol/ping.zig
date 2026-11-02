@@ -67,6 +67,10 @@ fn measureWithIcmpMode(allocator: std.mem.Allocator, ping_type: []const u8, targ
 
     var attempt: usize = 0;
     while (attempt < attempts) : (attempt += 1) {
+        if (attempt > 0) {
+            // 采样间隔 100ms，为底层网络和 P2P 打洞提供恢复与稳定窗口
+            compat.sleep(100 * std.time.ns_per_ms);
+        }
         samples[attempt] = measureOnce(allocator, kind, target, custom_dns, icmp_mode);
     }
 
@@ -96,6 +100,12 @@ fn selectLatencyFromSamples(kind: PingKind, samples: []const i64) i64 {
                 }
             }
         }
+    }
+
+    // 预热机制：首个样本作为预热包。若后续样本中有成功结果，优先从后续样本中选出最佳延迟，排除首包冷启动唤醒的毛刺
+    if (samples.len > 1) {
+        const post_warmup = bestLatencyFromSamplesForTest(samples[1..]);
+        if (post_warmup >= 0) return post_warmup;
     }
 
     return bestLatencyFromSamplesForTest(samples);
