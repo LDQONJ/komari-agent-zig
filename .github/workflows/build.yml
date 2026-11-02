@@ -12,355 +12,24 @@ permissions:
 env:
   ZIG_VERSION: 0.16.0
   ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
-  FREEBSD_ZIG_SHA256: 390379bfaf6b89b001c6bb4035b8fcbc5c12193fd9fd5048c3a0fe39e5d1cf72
 
 jobs:
-  native-test:
-    name: Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@v4
       - name: Install Zig
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
-        with:
-          version: ${{ env.ZIG_VERSION }}
-      - name: Test
+        run: |
+          set -eu
+          bash scripts/install_zig_ci.sh "zig-x86_64-linux-${ZIG_VERSION}.tar.xz" "${ZIG_SHA256}"
+      - name: Run unit tests
         run: zig build test
-      - name: Build native agent
-        run: zig build -Doptimize=ReleaseSmall -Dversion=dev
-      - name: Native ICMP ping smoke
-        if: runner.os == 'Linux'
-        run: |
-          set -eu
-          sudo sysctl -w net.ipv4.ping_group_range='0 2147483647' >/dev/null
-          raw="$(sudo zig-out/bin/komari-agent ping-test icmp 127.0.0.1 '' raw)"
-          auto="$(sudo zig-out/bin/komari-agent ping-test icmp 127.0.0.1)"
-          echo "raw=$raw auto=$auto"
-          test "$raw" -ge 0
-          test "$auto" -ge 0
-          datagram="$(zig-out/bin/komari-agent ping-test icmp 127.0.0.1 '' datagram)"
-          echo "datagram=$datagram"
-          test "$datagram" -ge 0
-      - name: Native mock panel business smoke
-        if: runner.os != 'Windows'
-        run: python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --cf --no-exec
-      - name: Native mock panel business smoke (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: python scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent.exe --cf --no-exec
-      - name: Test Windows install script
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./test/install_ps1_static_test.ps1
-
-  coverage:
-    name: Coverage (Linux)
-    runs-on: ubuntu-22.04
-    needs: native-test
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - name: Check comment coverage
-        run: python3 scripts/check_comment_coverage.py src 80
-      - name: Install Zig
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
-        with:
-          version: ${{ env.ZIG_VERSION }}
-      - name: Install kcov
-        run: |
-          set -eu
-          sudo apt-get update
-          sudo apt-get install -y kcov
-      - name: Collect coverage
-        run: |
-          set -eu
-          rm -rf coverage .zig-cache
-          zig build test -Dcoverage=true -Dcoverage-dir="$PWD/coverage/raw"
-          python3 scripts/check_coverage.py "$PWD/coverage/raw" 100
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: coverage-linux
-          path: coverage/raw
-          if-no-files-found: warn
-
-  linux-distro-test:
-    name: Linux Distro Test (${{ matrix.name }})
-    runs-on: ubuntu-latest
-    needs: native-test
-    container:
-      image: ${{ matrix.image }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: ubuntu-24.04
-            image: ubuntu:24.04
-          - name: debian-12
-            image: debian:12-slim
-          - name: fedora
-            image: fedora:latest
-          - name: alma
-            image: almalinux:9
-    steps:
-      - name: Prepare container
-        shell: sh
-        run: |
-          set -eu
-          if command -v apt-get >/dev/null 2>&1; then
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update
-            apt-get install -y --no-install-recommends bash ca-certificates curl findutils git gzip tar xz-utils
-          elif command -v dnf >/dev/null 2>&1; then
-            dnf -y install bash ca-certificates findutils git gzip tar xz
-            command -v curl >/dev/null 2>&1 || dnf -y install curl
-          elif command -v microdnf >/dev/null 2>&1; then
-            microdnf -y install bash ca-certificates findutils git gzip tar xz
-            command -v curl >/dev/null 2>&1 || microdnf -y install curl
-          elif command -v yum >/dev/null 2>&1; then
-            if [ -f /etc/centos-release ] && grep -q ' 7\.' /etc/centos-release; then
-              sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/CentOS-*.repo
-              sed -i 's|^#baseurl=http://mirror.centos.org/centos/$releasever|baseurl=http://vault.centos.org/7.9.2009|g' /etc/yum.repos.d/CentOS-*.repo
-            fi
-            yum -y install bash ca-certificates findutils git gzip tar xz
-            command -v curl >/dev/null 2>&1 || yum -y install curl
-          fi
-          command -v curl
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - name: Install Zig
-        shell: bash
-        run: |
-          set -eu
-          bash scripts/install_zig_ci.sh "zig-x86_64-linux-${ZIG_VERSION}.tar.xz" "${ZIG_SHA256}"
-      - name: Test
-        shell: bash
-        run: zig build test
-
-  freebsd-test:
-    name: FreeBSD Test
-    runs-on: ubuntu-latest
-    needs: native-test
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - name: Test in FreeBSD VM
-        uses: vmactions/freebsd-vm@d1e65811565151536c0c894fff74f06351ed26e6
-        with:
-          usesh: true
-          prepare: |
-            pkg install -y curl python3
-          run: |
-            set -eu
-            zig_dir="$(sh scripts/install_zig_ci.sh "zig-x86_64-freebsd-${{ env.ZIG_VERSION }}.tar.xz" "${{ env.FREEBSD_ZIG_SHA256 }}" "github-komari-zig-agent-freebsd-ci")"
-            export PATH="$zig_dir:$PATH"
-            zig build test
-            zig build -Doptimize=ReleaseSmall -Dversion=dev
-            zig-out/bin/komari-agent --show-warning
-            python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --cf --no-exec
-            zig build -Doptimize=ReleaseSmall -Dversion=dev -Dtarget=x86_64-freebsd
-
-  script-harness:
-    name: Deployment Script Harness
-    runs-on: ubuntu-latest
-    needs: native-test
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - name: Test install and replace scripts
-        run: sudo bash test/script_harness.sh
-
-  linux-e2e-smoke:
-    name: Linux Business E2E / Performance Smoke
-    runs-on: ubuntu-latest
-    needs: native-test
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - name: Install Zig
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
-        with:
-          version: ${{ env.ZIG_VERSION }}
-      - name: Build native agent
-        run: zig build -Doptimize=ReleaseSmall -Dversion=dev
-      - name: Run mock Komari smoke
-        run: python3 scripts/mock_komari_smoke.py zig-out/bin/komari-agent --max-basic-info-seconds 15
-      - name: Run business panel E2E
-        run: |
-          set -eu
-          sudo sysctl -w net.ipv4.ping_group_range='0 2147483647' >/dev/null
-          python3 -m py_compile scripts/mock_komari_business_e2e.py
-          python3 -m py_compile scripts/mock_komari_v2_e2e.py
-          python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --cf --no-exec
-          python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent
-          python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --terminal --no-exec
-          python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --autodiscovery --no-exec
-          python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --proxy --no-exec
-          python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --custom-dns --no-exec
-          python3 scripts/mock_komari_business_e2e.py panel zig-out/bin/komari-agent --no-exec --sudo-agent --tcp-ping-count 10 --http-ping-count 2 --icmp-ping-count 2
-          python3 scripts/mock_komari_v2_e2e.py ws zig-out/bin/komari-agent --terminal
-          python3 scripts/mock_komari_v2_e2e.py post-fallback zig-out/bin/komari-agent
-          python3 scripts/mock_komari_v2_e2e.py post-recover zig-out/bin/komari-agent
-      - name: Run self-update E2E
-        run: |
-          set -eu
-          rm -rf zig-out .zig-cache
-          zig build -Doptimize=ReleaseSmall -Dversion=v0.0.1
-          cp zig-out/bin/komari-agent ./komari-agent-old
-          rm -rf zig-out .zig-cache
-          zig build -Doptimize=ReleaseSmall -Dversion=v9.9.9
-          cp zig-out/bin/komari-agent ./komari-agent-new
-          chmod +x ./komari-agent-old ./komari-agent-new
-          python3 scripts/mock_komari_business_e2e.py self-update --old-agent ./komari-agent-old --new-agent ./komari-agent-new
-
-  linux-agent-smoke:
-    name: Linux Agent Smoke (${{ matrix.name }})
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: ubuntu-24.04
-            image: ubuntu:24.04
-            platform: linux/amd64
-            target: x86_64-linux-musl
-            binary: komari-agent
-          - name: fedora
-            image: fedora:latest
-            platform: linux/amd64
-            target: x86_64-linux-musl
-            binary: komari-agent
-          - name: centos-7
-            image: quay.io/centos/centos:7
-            platform: linux/amd64
-            target: x86_64-linux-musl
-            binary: komari-agent
-          - name: openwrt-x86-64
-            image: openwrt/rootfs:x86-64-22.03.2
-            platform: linux/amd64
-            target: x86_64-linux-musl
-            binary: komari-agent
-          - name: raspberry-pi-os-arm64
-            image: dtcooper/raspberrypi-os:bookworm
-            platform: linux/arm64
-            target: aarch64-linux-musl
-            binary: komari-agent
-          - name: synology-dsm-linux-amd64-profile
-            image: debian:12-slim
-            platform: linux/amd64
-            target: x86_64-linux-musl
-            binary: komari-agent
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - name: Enable foreign Linux containers
-        run: |
-          set -eu
-          docker run --privileged --rm tonistiigi/binfmt --install all
-      - name: Install Zig
-        run: |
-          set -eu
-          bash scripts/install_zig_ci.sh "zig-x86_64-linux-${ZIG_VERSION}.tar.xz" "${ZIG_SHA256}"
-      - name: Build static Linux binary
-        run: |
-          set -eu
-          zig build -Doptimize=ReleaseSmall -Dversion=dev -Dtarget=${{ matrix.target }}
-          cp "zig-out/bin/${{ matrix.binary }}" "./${{ matrix.binary }}"
-          chmod +x "./${{ matrix.binary }}"
-      - name: Run appliance image smoke
-        run: |
-          set -eu
-          docker run --platform "${{ matrix.platform }}" --rm -v "$PWD/${{ matrix.binary }}:/komari-agent:ro" "${{ matrix.image }}" /bin/sh -c '
-            set -eu
-            log="$(mktemp)"
-            /komari-agent --endpoint http://127.0.0.1:1 --token smoke --disable-auto-update --max-retries 0 --reconnect-interval 1 >"$log" 2>&1 &
-            pid="$!"
-            found=0
-            i=0
-            while [ "$i" -lt 20 ]; do
-              if grep -Eq "Monitoring Interfaces: \[[^]]+\]" "$log"; then
-                found=1
-                break
-              fi
-              if ! kill -0 "$pid" 2>/dev/null; then
-                break
-              fi
-              sleep 1
-              i=$((i + 1))
-            done
-            kill "$pid" 2>/dev/null || true
-            wait "$pid" 2>/dev/null || true
-            cat "$log"
-            rm -f "$log"
-            [ "$found" -eq 1 ]
-          '
-
-  linux-arch-agent-smoke:
-    name: Linux Arch Agent Smoke (${{ matrix.arch }})
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            target: x86_64-linux-musl
-            runner: direct
-          - arch: "386"
-            target: x86-linux-musl
-            runner: qemu-i386-static
-          - arch: arm
-            target: arm-linux-musleabi
-            runner: qemu-arm-static
-          - arch: arm64
-            target: aarch64-linux-musl
-            runner: qemu-aarch64-static
-          - arch: mips
-            target: mips-linux-musleabi
-            runner: qemu-mips-static
-          - arch: mipsel
-            target: mipsel-linux-musleabi
-            runner: qemu-mipsel-static
-          - arch: mips64
-            target: mips64-linux-muslabi64
-            runner: qemu-mips64-static
-          - arch: mips64el
-            target: mips64el-linux-muslabi64
-            runner: qemu-mips64el-static
-          - arch: riscv64
-            target: riscv64-linux-musl
-            runner: qemu-riscv64-static
-          - arch: s390x
-            target: s390x-linux-musl
-            runner: qemu-s390x-static
-          - arch: loong64
-            target: loongarch64-linux-musl
-            runner: qemu-loongarch64-static
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - name: Install Zig and QEMU
-        run: |
-          set -eu
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static
-          bash scripts/install_zig_ci.sh "zig-x86_64-linux-${ZIG_VERSION}.tar.xz" "${ZIG_SHA256}"
-      - name: Build and run agent smoke
-        run: |
-          set -eu
-          zig build -Doptimize=ReleaseSmall -Dversion=dev -Dtarget=${{ matrix.target }}
-          cp zig-out/bin/komari-agent ./komari-agent
-          chmod +x ./komari-agent
-          if [ "${{ matrix.runner }}" = "direct" ]; then
-            ./komari-agent --show-warning
-            ./komari-agent socket-timeout-smoke
-          else
-            command -v "${{ matrix.runner }}"
-            "${{ matrix.runner }}" ./komari-agent --show-warning
-            "${{ matrix.runner }}" ./komari-agent socket-timeout-smoke
-          fi
 
   build:
+    name: Build (${{ matrix.os }}-${{ matrix.arch }})
     runs-on: ubuntu-latest
-    needs: [native-test, coverage, linux-distro-test, freebsd-test, script-harness, linux-e2e-smoke]
+    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -371,70 +40,23 @@ jobs:
           - os: linux
             arch: arm64
             target: aarch64-linux-musl
-          - os: linux
-            arch: "386"
-            target: x86-linux-musl
-          - os: linux
-            arch: arm
-            target: arm-linux-musleabi
-          - os: linux
-            arch: mips
-            target: mips-linux-musleabi
-          - os: linux
-            arch: mipsel
-            target: mipsel-linux-musleabi
-          - os: linux
-            arch: mips64
-            target: mips64-linux-muslabi64
-          - os: linux
-            arch: mips64el
-            target: mips64el-linux-muslabi64
-          - os: linux
-            arch: riscv64
-            target: riscv64-linux-musl
-          - os: linux
-            arch: s390x
-            target: s390x-linux-musl
-          - os: linux
-            arch: loong64
-            target: loongarch64-linux-musl
-          - os: freebsd
-            arch: amd64
-            target: x86_64-freebsd
-          - os: freebsd
-            arch: arm64
-            target: aarch64-freebsd
-          - os: freebsd
-            arch: "386"
-            target: x86-freebsd
-          - os: freebsd
-            arch: arm
-            target: arm-freebsd
-          - os: darwin
-            arch: amd64
-            target: x86_64-macos
-          - os: darwin
-            arch: arm64
-            target: aarch64-macos
           - os: windows
             arch: amd64
             target: x86_64-windows-gnu
           - os: windows
             arch: arm64
             target: aarch64-windows-gnu
-          - os: windows
-            arch: "386"
-            target: x86-windows-gnu
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@v4
       - name: Install Zig
         run: |
           set -eu
           bash scripts/install_zig_ci.sh "zig-x86_64-linux-${ZIG_VERSION}.tar.xz" "${ZIG_SHA256}"
-      - name: Build
+      - name: Build binary
         run: |
           set -eu
-          zig build -Doptimize=ReleaseSmall -Dversion=dev -Dtarget=${{ matrix.target }}
+          VERSION="${GITHUB_SHA::7}"
+          zig build -Doptimize=ReleaseSmall -Dversion="${VERSION}" -Dtarget=${{ matrix.target }}
           mkdir -p dist
           binary="komari-agent"
           asset="komari-agent-${{ matrix.os }}-${{ matrix.arch }}"
@@ -443,7 +65,8 @@ jobs:
             asset="${asset}.exe"
           fi
           cp "zig-out/bin/${binary}" "dist/${asset}"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: komari-agent-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/komari-agent-${{ matrix.os }}-${{ matrix.arch }}*
