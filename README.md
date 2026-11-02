@@ -5,14 +5,14 @@ Zig 版 `komari-agent`，目标是直接替换原 Go agent，并保持 Komari �
 ## 项目看板
 
 <p>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/actions/workflows/build.yml?query=branch%3Amain"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/luodaoyi/komari-zig-agent/build.yml?branch=main&label=build&logo=githubactions&logoColor=white" /></a>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/actions/workflows/build.yml?query=branch%3Amain"><img alt="Coverage Gate" src="https://img.shields.io/github/actions/workflow/status/luodaoyi/komari-zig-agent/build.yml?branch=main&label=coverage%20100%25%20gate&logo=codecov&logoColor=white" /></a>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/actions/workflows/release.yml"><img alt="Release Workflow" src="https://img.shields.io/github/actions/workflow/status/luodaoyi/komari-zig-agent/release.yml?label=release&logo=githubactions&logoColor=white" /></a>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/luodaoyi/komari-zig-agent?display_name=tag&sort=semver" /></a>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/releases"><img alt="Release Date" src="https://img.shields.io/github/release-date/luodaoyi/komari-zig-agent" /></a>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/releases"><img alt="Total Downloads" src="https://img.shields.io/github/downloads/luodaoyi/komari-zig-agent/total?label=release%20downloads" /></a>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/luodaoyi/komari-zig-agent?style=flat" /></a>
-  <a href="https://github.com/luodaoyi/komari-zig-agent/issues"><img alt="Issues" src="https://img.shields.io/github/issues/luodaoyi/komari-zig-agent" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/actions/workflows/build.yml?query=branch%3Amain"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/LDQONJ/komari-agent-zig/build.yml?branch=main&label=build&logo=githubactions&logoColor=white" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/actions/workflows/build.yml?query=branch%3Amain"><img alt="Coverage Gate" src="https://img.shields.io/github/actions/workflow/status/LDQONJ/komari-agent-zig/build.yml?branch=main&label=coverage%20100%25%20gate&logo=codecov&logoColor=white" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/actions/workflows/release.yml"><img alt="Release Workflow" src="https://img.shields.io/github/actions/workflow/status/LDQONJ/komari-agent-zig/release.yml?label=release&logo=githubactions&logoColor=white" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/LDQONJ/komari-agent-zig?display_name=tag&sort=semver" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/releases"><img alt="Release Date" src="https://img.shields.io/github/release-date/LDQONJ/komari-agent-zig" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/releases"><img alt="Total Downloads" src="https://img.shields.io/github/downloads/LDQONJ/komari-agent-zig/total?label=release%20downloads" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/LDQONJ/komari-agent-zig?style=flat" /></a>
+  <a href="https://github.com/LDQONJ/komari-agent-zig/issues"><img alt="Issues" src="https://img.shields.io/github/issues/LDQONJ/komari-agent-zig" /></a>
 </p>
 
 <p>
@@ -39,7 +39,7 @@ Zig 版 `komari-agent`，目标是直接替换原 Go agent，并保持 Komari �
 - Zig：0.16.0。
 - 服务端原项目：`komari-monitor/komari`，仓库地址 <https://github.com/komari-monitor/komari>。
 - Agent 兼容目标：`komari-monitor/komari-agent` 协议，原 Agent 仓库 <https://github.com/komari-monitor/komari-agent>。
-- 发布仓库：`luodaoyi/komari-zig-agent`。
+- 发布仓库：`LDQONJ/komari-agent-zig`。
 - 自更新：检查本仓库 GitHub Release，不再下载原 Go 仓库版本。
 
 ## 相较官方 Go Agent 的优势
@@ -83,13 +83,13 @@ Zig 版 `komari-agent`，目标是直接替换原 Go agent，并保持 Komari �
 已经装了默认服务名为 `komari-agent` 的官方 Go Agent？直接执行下面一条命令即可替换为 Zig 版。原有的面板地址、Token 和上报间隔都会保留，无需重新配置。
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/luodaoyi/komari-zig-agent/bd2e0b8de76a11601d57b1663e9002912e1a82f2/replace.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/LDQONJ/komari-agent-zig/bd2e0b8de76a11601d57b1663e9002912e1a82f2/replace.sh | sudo sh
 ```
 
 国内网络无法访问 GitHub 时，使用 jsDelivr CDN：
 
 ```sh
-curl -fsSL https://cdn.jsdelivr.net/gh/luodaoyi/komari-zig-agent@bd2e0b8de76a11601d57b1663e9002912e1a82f2/replace.sh | sudo sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LDQONJ/komari-agent-zig@bd2e0b8de76a11601d57b1663e9002912e1a82f2/replace.sh | sudo sh
 ```
 
 脚本会自动识别 CPU 架构，下载匹配的 Release，校验 `SHA256SUMS`，备份原 Go Agent，替换后重启原服务。下载、校验或启动失败时不会覆盖正在使用的 Agent；systemd 启动失败会自动回滚。
@@ -101,7 +101,7 @@ curl -fsSL https://cdn.jsdelivr.net/gh/luodaoyi/komari-zig-agent@bd2e0b8de76a116
 Agent 启动后会检查：
 
 ```text
-https://api.github.com/repos/luodaoyi/komari-zig-agent/releases/latest
+https://api.github.com/repos/LDQONJ/komari-agent-zig/releases/latest
 ```
 
 若发现更高版本，会下载与当前平台匹配的资产，例如：
@@ -207,8 +207,8 @@ Action 会自动：
 
 ## Star History
 
-<a href="https://github.com/luodaoyi/komari-zig-agent/tree/star-history">
-  <img alt="Star History Chart" src="https://raw.githubusercontent.com/luodaoyi/komari-zig-agent/star-history/star-history.svg" />
+<a href="https://github.com/LDQONJ/komari-agent-zig/tree/star-history">
+  <img alt="Star History Chart" src="https://raw.githubusercontent.com/LDQONJ/komari-agent-zig/star-history/star-history.svg" />
 </a>
 
 图表由仓库自身的 GitHub Actions 每日更新；历史数据和 SVG 保存在独立的 `star-history` 分支，不依赖第三方图表服务。

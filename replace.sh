@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-repo="luodaoyi/komari-zig-agent"
+repo="LDQONJ/komari-agent-zig"
 service_name="komari-agent"
 install_version=""
 github_proxy=""

@@ -14,7 +14,7 @@ log_warning() { printf '%b\n' "${YELLOW}[WARNING]${NC} $*"; }
 log_error() { printf '%b\n' "${RED}[ERROR]${NC} $*" >&2; }
 log_config() { printf '%b\n' "${CYAN}[CONFIG]${NC} $*"; }
 
-repo="luodaoyi/komari-zig-agent"
+repo="LDQONJ/komari-agent-zig"
 service_name="komari-agent"
 target_dir="/opt/komari"
 github_proxy=""
