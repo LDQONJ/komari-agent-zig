@@ -30,6 +30,7 @@ Zig 版 `komari-agent`，目标是直接替换原 Go agent，并保持 Komari �
 
 - 功能兼容：官方 Go agent `1.2.60` 的启动参数、配置来源、BasicInfo、Report WebSocket、任务执行、Ping、Web SSH、自动发现、代理、自定义 DNS/IP、自更新、安装和替换脚本均已实现；继续保留可选 Cloudflare Access 凭据支持。
 - 上游增量：已吸收 `Snapshot-2607270914` 的非 root systemd user 安装和 Windows NVIDIA 详细 GPU 指标，并继续支持更早加入的 Linux `loong64` 构建与安装。
+- NVIDIA 温度保留小数：启用 GPU 上报前，服务端需先升级至 `1.6.2` 或其他已包含浮点温度支持的版本（上游 `komari-monitor/komari#710`）。旧版整数解码器无法接收小数温度，可能拒绝整份报告；请先升级服务端，暂不能升级时保持 GPU 上报关闭。整数温度仍输出整数 JSON；负数、不可用或非有限温度按 `0` 回退。暂不支持自动协商服务端能力，升级本 agent 不会升级服务端。
 - 支持系统：Linux、FreeBSD、macOS、Windows；Linux 覆盖 Debian/Ubuntu/Kali、Fedora/CentOS Stream/Rocky/Alma、OpenWrt、Raspberry Pi OS profile、Synology DSM profile。
 - Release 资产：自动构建 20 个二进制，其中 Linux 11 架构：`amd64`、`arm64`、`386`、`arm`、`mips`、`mipsel`、`mips64`、`mips64el`、`riscv64`、`s390x`、`loong64`。
 - 自动化测试：Ubuntu、macOS、Windows 原生单测；Debian/Ubuntu/Kali 和红帽系容器单测；FreeBSD VM 单测；OpenWrt、Raspberry Pi OS、Synology DSM profile 与主流 Linux 发行版 agent 启动烟测；Linux 多架构 QEMU agent 启动烟测。
@@ -83,16 +84,18 @@ Zig 版 `komari-agent`，目标是直接替换原 Go agent，并保持 Komari �
 已经装了默认服务名为 `komari-agent` 的官方 Go Agent？直接执行下面一条命令即可替换为 Zig 版。原有的面板地址、Token 和上报间隔都会保留，无需重新配置。
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/LDQONJ/komari-agent-zig/bd2e0b8de76a11601d57b1663e9002912e1a82f2/replace.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/LDQONJ/komari-agent-zig/main/replace.sh | sudo sh
 ```
 
 国内网络无法访问 GitHub 时，使用 jsDelivr CDN：
 
 ```sh
-curl -fsSL https://cdn.jsdelivr.net/gh/LDQONJ/komari-agent-zig@bd2e0b8de76a11601d57b1663e9002912e1a82f2/replace.sh | sudo sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LDQONJ/komari-agent-zig@main/replace.sh | sudo sh
 ```
 
-脚本会自动识别 CPU 架构，下载匹配的 Release，校验 `SHA256SUMS`，备份原 Go Agent，替换后重启原服务。下载、校验或启动失败时不会覆盖正在使用的 Agent；systemd 启动失败会自动回滚。
+脚本会自动识别 CPU 架构，下载匹配的 Release，校验 `SHA256SUMS` 并执行二进制预检，替换后重启原服务。不备份原 Agent，也不自动回滚：下载、校验或预检失败时原 Agent 保持不变；替换后启动或健康检查失败则报错退出，保留新二进制。
+
+安装脚本（`install.sh` / `install.ps1`）和 `update-binary.sh` 同样不保留原 Agent 备份。脚本不会清理以往版本遗留的备份文件。
 
 > 适用于 Linux 和 OpenWrt 的已有 Go Agent 安装。自定义服务名、Windows、首次安装、指定版本或自定义路径等高级场景，请查看脚本参数或 GitHub Release。
 
